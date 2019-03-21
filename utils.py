@@ -1,0 +1,54 @@
+import torch
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+def generate_grid(h, w):
+    rows = torch.linspace(0, 1, h)
+    cols = torch.linspace(0, 1, w)
+    grid = torch.stack([cols.repeat(h, 1).t().contiguous().view(-1), rows.repeat(w)], dim=1)
+    grid = grid.unsqueeze(0)
+    return grid
+
+
+def load_nc_data(data_file):
+    from netCDF4 import Dataset as dt
+    f = dt(data_file)
+    air = f.variables['air']
+    air_range = air.valid_range
+    air_data = air[:].data
+    # convert to degree celsius
+    if air.units == 'degK':
+        air_data -= 273
+        air_range -= 273
+    return air_data
+
+
+def save_image(inps, true, mu, fn, var=None):
+    fig, ax = plt.subplots(2, 4, figsize=(12,8), sharex=True, sharey=True)
+    ax = ax.flatten()
+    for ax_ in ax:
+        ax_.get_xaxis().set_visible(False)
+        ax_.get_yaxis().set_visible(False)
+    
+    n = len(inps)
+    vmin = min([x.min() for x in inps])
+    vmax = max([x.max() for x in inps])
+    cbar_ax = fig.add_axes([.91, .3, .03, .4])
+
+    sns.heatmap(inps[0], ax=ax[0], cmap='ocean', vmin=vmin, vmax=vmax, cbar=True, cbar_ax=cbar_ax, square=False)
+    ax[0].set_title('T=1')
+    for i in range(1, n):
+        sns.heatmap(inps[i], ax=ax[i], cmap='ocean', vmin=vmin, vmax=vmax, cbar=False, square=False)
+        ax[i].set_title('T={}'.format(i+1))
+
+    sns.heatmap(true, ax=ax[n], cmap='ocean', vmin=vmin, vmax=vmax, cbar=False, square=False)
+    ax[n].set_title('Actual (T={})'.format(n+1))
+
+    sns.heatmap(mu, ax=ax[n+1], cmap='ocean', vmin=vmin, vmax=vmax, cbar=False, square=False)
+    ax[n+1].set_title('Prediction (T={})'.format(n+1))
+
+    plt.savefig(fn)
+    plt.close(fig)
