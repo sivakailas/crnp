@@ -45,7 +45,7 @@ def get_dataloaders(args):
     air_data = air_data - data_mean
 
     # train test split
-    train_indices = np.arange(50, 600)
+    train_indices = np.arange(600)
     test_indices = np.arange(636, 800)
     eval_data = air_data[636:800]
     if not args.random_roi:

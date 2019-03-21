@@ -8,7 +8,9 @@ import seaborn as sns
 def generate_grid(h, w):
     rows = torch.linspace(0, 1, h)
     cols = torch.linspace(0, 1, w)
-    grid = torch.stack([cols.repeat(h, 1).t().contiguous().view(-1), rows.repeat(w)], dim=1)
+    x, y = torch.meshgrid(rows, cols)
+    grid = torch.stack([x.flatten(),y.flatten()]).t()
+    # grid = torch.stack([cols.repeat(h, 1).t().contiguous().view(-1), rows.repeat(w)], dim=1)
     grid = grid.unsqueeze(0)
     return grid
 
@@ -27,15 +29,17 @@ def load_nc_data(data_file):
 
 
 def save_image(inps, true, mu, fn, var=None):
-    fig, ax = plt.subplots(2, 4, figsize=(12,8), sharex=True, sharey=True)
+    # TODO: find a way to determine figsize
+    # compute this from the size of image
+    fig, ax = plt.subplots(2, 4, figsize=(16,8), sharex=True, sharey=True)
     ax = ax.flatten()
     for ax_ in ax:
         ax_.get_xaxis().set_visible(False)
         ax_.get_yaxis().set_visible(False)
     
     n = len(inps)
-    vmin = min([x.min() for x in inps])
-    vmax = max([x.max() for x in inps])
+    vmin = true.min()
+    vmax = true.max()
     cbar_ax = fig.add_axes([.91, .3, .03, .4])
 
     sns.heatmap(inps[0], ax=ax[0], cmap='ocean', vmin=vmin, vmax=vmax, cbar=True, cbar_ax=cbar_ax, square=False)
@@ -50,5 +54,7 @@ def save_image(inps, true, mu, fn, var=None):
     sns.heatmap(mu, ax=ax[n+1], cmap='ocean', vmin=vmin, vmax=vmax, cbar=False, square=False)
     ax[n+1].set_title('Prediction (T={})'.format(n+1))
 
+    fig.subplots_adjust(wspace=0.05, hspace=0.1)
+    
     plt.savefig(fn)
     plt.close(fig)

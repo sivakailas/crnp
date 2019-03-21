@@ -4,6 +4,7 @@ from tensorboard_logger import log_value
 import numpy as np
 import utils as ut
 import os
+import ipdb
 
 
 class Trainer:
@@ -19,12 +20,13 @@ class Trainer:
         self.net = CRNP(input_size=self.input_size, output_size=self.output_size).to(self.device)
         self.optimizer = torch.optim.Adam(self.net.parameters(), args.lr)
         self.args = args
-        self.size = train_dataloader.dataset[0][0].shape[-1]
-        self.N = self.size**2
-        self.x_grid = ut.generate_grid(self.size,self.size)
-
+        self.min_val = train_dataloader.dataset.data.min()
+        self.sz1, self.sz2 = train_dataloader.dataset.data.shape[-2:]
+        self.N = self.sz1 * self.sz2
+        self.x_grid = ut.generate_grid(self.sz1, self.sz2)
+        
     def select(self, inp, return_idx=False):
-        # inp - num_batches x self.args.seq_length x 1 x self.size x self.size
+        # inp - num_batches x self.args.seq_length x 1 x self.sz1 x self.sz2
 
         # sample self.args.num_samples in each timestep
         sz = inp.shape
@@ -89,8 +91,8 @@ class Trainer:
                 
                 if save:
                     t = np.random.randint(0, len(inp))
-                    true = y_target[t].cpu().numpy().squeeze().reshape(self.size, self.size) + self.data_mean
-                    pred = mu[t].cpu().numpy().squeeze().reshape(self.size, self.size) + self.data_mean
+                    true = y_target[t].cpu().numpy().squeeze().reshape(self.sz1, self.sz2) + self.data_mean
+                    pred = mu[t].cpu().numpy().squeeze().reshape(self.sz1, self.sz2) + self.data_mean
                     fn = os.path.join(self.args.logdir, 'epoch_' + str(epoch) + '_' + str(batch_idx) + '.png')
                     inps = self.reconstruct(y_context[t].cpu().numpy(), idxs[t].cpu().numpy())
                     ut.save_image(inps, true, pred, fn, var=None)
@@ -101,8 +103,9 @@ class Trainer:
 
     def reconstruct(self, y_context, idxs):
         nb = len(y_context)
-        canvas = [np.zeros(self.N) for _ in range(nb)]
+        canvas = [np.ones(self.N)*self.min_val for _ in range(nb)]
         for i in range(nb):
-            canvas[i][idxs.squeeze()] = y_context[i].squeeze() + self.data_mean.flatten()[idxs.squeeze()]
-            canvas[i] = canvas[i].reshape(self.size, self.size) 
+            idx = idxs[i].squeeze()
+            canvas[i][idx] = y_context[i].squeeze() + self.data_mean.flatten()[idx]
+            canvas[i] = canvas[i].reshape(self.sz1, self.sz2) 
         return canvas
