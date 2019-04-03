@@ -8,23 +8,29 @@ import ipdb
 
 
 class Trainer:
-    def __init__(self, train_dataloader, test_dataloader, args, eval_data, data_mean):
+    def __init__(self, train_dataloader, test_dataloader, args, data_mean=None):
         self.train_dataloader = train_dataloader
         self.test_dataloader = test_dataloader
-        self.eval_data = eval_data
-        self.data_mean = data_mean
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.input_size = 2
         self.output_size = 1
-        self.net = CRNP(input_size=self.input_size, output_size=self.output_size).to(self.device)
+        # if using mnist, use sigmoid in the decoding step
+        self.net = CRNP(input_size=self.input_size,
+                        output_size=self.output_size,
+                        sigmoid_output=args.mnist).to(self.device)
+        
         self.optimizer = torch.optim.Adam(self.net.parameters(), args.lr)
         self.args = args
-        self.min_val = train_dataloader.dataset.data.min()
         self.sz1, self.sz2 = train_dataloader.dataset.data.shape[-2:]
         self.N = self.sz1 * self.sz2
         self.x_grid = ut.generate_grid(self.sz1, self.sz2)
         
+        # used only for plotting partial images
+        self.min_val = self.train_dataloader.dataset.data.min()
+        self.data_mean = data_mean
+        self.mean_reduction = data_mean is not None
+
     def select(self, inp, return_idx=False):
         # inp - num_batches x self.args.seq_length x 1 x self.sz1 x self.sz2
 
@@ -50,6 +56,9 @@ class Trainer:
         step = 0
         for epoch in range(num_epochs):
             for batch_idx, (inp, target) in enumerate(self.train_dataloader):
+                inp = inp.float()
+                target = target.float()
+                
                 step += 1
                 x_context, y_context = self.select(inp)
                 x_target = self.x_grid.expand(len(inp),-1,-1).to(self.device)
@@ -91,10 +100,13 @@ class Trainer:
                 
                 if save:
                     t = np.random.randint(0, len(inp))
-                    true = y_target[t].cpu().numpy().squeeze().reshape(self.sz1, self.sz2) + self.data_mean
-                    pred = mu[t].cpu().numpy().squeeze().reshape(self.sz1, self.sz2) + self.data_mean
+                    true = y_target[t].cpu().numpy().squeeze().reshape(self.sz1, self.sz2)
+                    pred = mu[t].cpu().numpy().squeeze().reshape(self.sz1, self.sz2)
                     fn = os.path.join(self.args.logdir, 'epoch_' + str(epoch) + '_' + str(batch_idx) + '.png')
                     inps = self.reconstruct(y_context[t].cpu().numpy(), idxs[t].cpu().numpy())
+                    if self.mean_reduction:
+                        true += self.data_mean
+                        pred += self.data_mean
                     ut.save_image(inps, true, pred, fn, var=None)
 
         test_mae = abs_err / (count * self.N)
@@ -106,6 +118,9 @@ class Trainer:
         canvas = [np.ones(self.N)*self.min_val for _ in range(nb)]
         for i in range(nb):
             idx = idxs[i].squeeze()
-            canvas[i][idx] = y_context[i].squeeze() + self.data_mean.flatten()[idx]
+            if self.mean_reduction:
+                canvas[i][idx] = y_context[i].squeeze() + self.data_mean.flatten()[idx]
+            else:
+                canvas[i][idx] = y_context[i].squeeze()
             canvas[i] = canvas[i].reshape(self.sz1, self.sz2) 
         return canvas

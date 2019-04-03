@@ -62,7 +62,7 @@ class Forecaster(nn.Module):
 
 
 class CRNP(nn.Module):
-    def __init__(self, input_size, output_size):
+    def __init__(self, input_size, output_size, sigmoid_output=False):
         super().__init__()
         embed_size = 128
         hidden_size = 128
@@ -72,6 +72,7 @@ class CRNP(nn.Module):
         self.encoder = MLP(enc_sizes, embed_size)
         self.forecaster = Forecaster(embed_size)
         self.decoder = MLP(dec_sizes, 2*output_size)
+        self.sigmoid_output = sigmoid_output
         self.apply(weights_init)
 
     def forward(self, context_x, context_y, target_x, target_y=None):
@@ -90,6 +91,8 @@ class CRNP(nn.Module):
         out = self.decoder(x)
         mu, logsigma = torch.split(out, self.output_size, dim=-1)
         sigma = 0.1 + 0.9 * torch.nn.Softplus()(logsigma)
+        if self.sigmoid_output:
+            mu = torch.sigmoid(mu)
 
         dist = torch.distributions.Normal(mu, sigma)        
         if target_y is None:
