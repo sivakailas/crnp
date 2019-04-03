@@ -37,17 +37,21 @@ class STDataset(Dataset):
 
 def get_dataloaders(args):
     # return train and test dataloaders for conv model
-    air_data = utils.load_nc_data(args.data_file)
+    data = utils.load_nc_data(args.data_file, variable='precip')
+    
     # normalize data between 0 and 1
     if args.normalize_y:
-        air_data = (air_data - air_data.min())/(air_data.max() - air_data.min())
-    data_mean = air_data.mean(0)
-    air_data = air_data - data_mean
+        data = (data - data.min())/(data.max() - data.min())
+    data_mean = data.mean(0)
+    data = data - data_mean
+
 
     # train test split
-    train_indices = np.arange(600)
-    test_indices = np.arange(636, 800)
-    eval_data = air_data[636:800]
+    train_size = int(.8*len(data))
+    offset = 24
+    train_indices = np.arange(train_size)
+    test_indices = np.arange(train_size+offset, len(data)-offset)
+    eval_data = data[train_size+offset:len(data)-offset]
     if not args.random_roi:
         eval_data = eval_data[:, args.lat_min:args.lat_max, args.lon_min:args.lon_max]
         data_mean = data_mean[args.lat_min:args.lat_max, args.lon_min:args.lon_max]
@@ -62,7 +66,7 @@ def get_dataloaders(args):
     train_batch_size = 64
     test_batch_size = 64
 
-    dataset = STDataset(data=air_data, params=vars(args))
+    dataset = STDataset(data=data, params=vars(args))
     train_dataloader = DataLoader(dataset, batch_size=train_batch_size, num_workers=1, sampler=train_sampler)
     test_dataloader = DataLoader(dataset, batch_size=test_batch_size, num_workers=1, sampler=test_sampler)
     return train_dataloader, test_dataloader, eval_data, data_mean

@@ -15,17 +15,21 @@ def generate_grid(h, w):
     return grid
 
 
-def load_nc_data(data_file):
+def load_nc_data(data_file, variable='air'):
     from netCDF4 import Dataset as dt
     f = dt(data_file)
-    air = f.variables['air']
-    air_range = air.valid_range
-    air_data = air[:].data
-    # convert to degree celsius
-    if air.units == 'degK':
-        air_data -= 273
-        air_range -= 273
-    return air_data
+    if variable=='air':
+        air = f.variables['air']
+        air_range = air.valid_range
+        data = air[:].data
+        # convert to degree celsius
+        if air.units == 'degK':
+            data -= 273
+            air_range -= 273
+    else:
+        precip = f.variables['precip']
+        data = precip[:].data
+    return data
 
 
 def save_image(inps, true, mu, fn, var=None):
