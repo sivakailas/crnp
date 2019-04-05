@@ -91,7 +91,7 @@ def get_st_dataloaders(args):
 
 def get_mnist_dataloader(args):
     filename = 'data/mnist_test_seq.npy'
-    inp_len = 10
+    inp_len = args.seq_length
     out_len = 1
     dataset = MovingMNIST(filename, inp_len=inp_len, out_len=out_len)
     num_train = int(.75*len(dataset))
@@ -107,4 +107,8 @@ def get_mnist_dataloader(args):
     test_batch_size = args.batch_size
     train_dataloader = DataLoader(dataset, batch_size=train_batch_size, num_workers=1, sampler=train_sampler)
     test_dataloader = DataLoader(dataset, batch_size=test_batch_size, num_workers=1, sampler=test_sampler)
-    return train_dataloader, test_dataloader, None
+    
+    # sz = train_dataloader.dataset.data.shape[-2:]
+    # data_mean = train_dataloader.dataset.data.reshape(-1,sz[0],sz[1]).mean(0)
+    data_mean = None
+    return train_dataloader, test_dataloader, data_mean

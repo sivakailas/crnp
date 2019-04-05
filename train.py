@@ -18,8 +18,11 @@ class Trainer:
         # if using mnist, use sigmoid in the decoding step
         self.net = CRNP(input_size=self.input_size,
                         output_size=self.output_size,
-                        sigmoid_output=args.mnist).to(self.device)
-        
+                        sigmoid_output=args.mnist)
+        # if torch.cuda.device_count()>1:
+        #     self.net = torch.nn.DataParallel(self.net)
+        self.net = self.net.to(self.device)
+            
         self.optimizer = torch.optim.Adam(self.net.parameters(), args.lr)
         self.args = args
         self.sz1, self.sz2 = train_dataloader.dataset.data.shape[-2:]
@@ -30,6 +33,7 @@ class Trainer:
         self.min_val = self.train_dataloader.dataset.data.min()
         self.data_mean = data_mean
         self.mean_reduction = data_mean is not None
+        self.regress_inp = False
 
     def select(self, inp, return_idx=False):
         # inp - num_batches x self.args.seq_length x 1 x self.sz1 x self.sz2
@@ -62,12 +66,26 @@ class Trainer:
                 step += 1
                 x_context, y_context = self.select(inp)
                 x_target = self.x_grid.expand(len(inp),-1,-1).to(self.device)
-                y_target = target.view(target.shape[0], -1, 1).to(self.device)
+
+                # (batch_size, num_timesteps=1, self.N)   
+                y_target = target.view(target.shape[0], target.shape[1], -1).to(self.device)
+                # (batch_size, num_timesteps, self.N)   
+                if self.regress_inp:
+                    y_inp = inp.view(inp.shape[0], inp.shape[1], -1).to(self.device)
+                    ty = torch.cat([y_inp, y_target], dim=1)
+                else:
+                    y_inp = None
+                    ty = y_target
 
                 self.optimizer.zero_grad()
-                mu, sigma, dist, loss = self.net(x_context, y_context, x_target, y_target)
+                mu, sigma, dist = self.net(x_context, y_context, x_target, y_target, y_inp)
+                
+                # compute loss
+                log_p = dist.log_prob(ty).squeeze()
+                loss = -torch.mean(log_p)
                 loss.backward()
                 self.optimizer.step()
+                
                 with torch.no_grad():
                     mae = torch.mean(torch.abs(mu - y_target))
 
@@ -90,12 +108,15 @@ class Trainer:
 
         with torch.no_grad():
             for batch_idx, (inp, target) in enumerate(self.test_dataloader):
+                inp = inp.float()
+                target = target.float()
+
                 x_context, y_context, idxs = self.select(inp, return_idx=True)
                 x_target = self.x_grid.expand(len(inp),-1,-1).to(self.device)
                 y_target = target.view(target.shape[0], -1, 1).to(self.device)
                 
-                mu, sigma, dist, loss = self.net(x_context, y_context, x_target, y_target)
-                abs_err += torch.sum(torch.abs(mu - y_target))
+                mu, sigma, dist = self.net(x_context, y_context, x_target, y_target)
+                abs_err += torch.sum(torch.abs(mu.squeeze() - y_target.squeeze()))
                 count += len(mu)
                 
                 if save:

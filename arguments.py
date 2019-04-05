@@ -37,6 +37,5 @@ def get_args():
     # setup logdir
     logid = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S-%f") if args.logid is None else str(args.logid)
     args.logdir = os.path.join(args.logdir, str(logid))
-
     return args
 

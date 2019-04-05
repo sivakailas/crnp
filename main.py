@@ -1,5 +1,3 @@
-import numpy as np
-import utils
 from arguments import get_args
 import tensorboard_logger
 from train import Trainer
