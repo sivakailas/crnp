@@ -1,2 +1,4 @@
 noaa_datasets/
 logs/
+crnp_env/
+__pycache__/

@@ -37,7 +37,7 @@ class STDataset(Dataset):
 
 def get_dataloaders(args):
     # return train and test dataloaders for conv model
-    data = utils.load_nc_data(args.data_file, variable='precip')
+    data = utils.load_nc_data(args.data_file, variable='air')
     
     # normalize data between 0 and 1
     if args.normalize_y:

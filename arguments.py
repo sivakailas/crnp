@@ -7,14 +7,14 @@ def get_args():
     parser = argparse.ArgumentParser()
 
     # DATASET
-    parser.add_argument('--data-file', default='noaa_datasets/air.mon.mean.nc')
+    parser.add_argument('--data-file', default='noaa_datasets/air.sig995.mon.mean.nc')
     parser.add_argument('--random-roi', action='store_true', help='A random region of interest is sampled at every instant')
     parser.add_argument('--roi-size', default=30, type=int, help='size of region of interest')
     # these are indices, check the data file to see the actual values of them
-    parser.add_argument('--lat-min', default=15, type=int, help='minimum latitude index')
+    parser.add_argument('--lat-min', default=0, type=int, help='minimum latitude index')
     parser.add_argument('--lat-max', default=45, type=int, help='maximum latitude index')
-    parser.add_argument('--lon-min', default=95, type=int, help='minimum longtitude index')
-    parser.add_argument('--lon-max', default=125, type=int, help='maximum longtitude index')
+    parser.add_argument('--lon-min', default=0, type=int, help='minimum longtitude index')
+    parser.add_argument('--lon-max', default=21, type=int, help='maximum longtitude index')
 
     # TRAINING
     parser.add_argument('--normalize-y', action='store_true', help='set target value between 0 and 1')
