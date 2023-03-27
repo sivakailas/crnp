@@ -5,6 +5,9 @@ from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 import tensorboard_logger
 from train import Trainer
+import os
+
+import scipy.io as sio
 
 
 class STDataset(Dataset):
@@ -32,12 +35,20 @@ class STDataset(Dataset):
             r1,r2,c1,c2 = utils.get_random_roi(*self.data.shape[-2:], self.roi_size)
             inp = inp[:, :, r1:r2, c1:c2]
             target = target[:, :, r1:r2, c1:c2]
-        return inp, target 
+        return idx, inp, target 
 
 
 def get_dataloaders(args):
     # return train and test dataloaders for conv model
-    data = utils.load_nc_data(args.data_file, variable='air')
+    data = None
+    if args.data_file != "animal_data.mat":
+        print('RUNNING WEATHER DATA')
+        data = utils.load_nc_data(args.data_file, variable='air')
+    else:
+        print('RUNNING ANIMAL DATA')
+        mat_contents = sio.loadmat("animal_data.mat")
+        data = mat_contents['formatted_Fss'].astype(np.float32)
+        data = np.rollaxis(data, 2)
     
     # normalize data between 0 and 1
     if args.normalize_y:
@@ -67,15 +78,15 @@ def get_dataloaders(args):
     test_batch_size = 64
 
     dataset = STDataset(data=data, params=vars(args))
-    train_dataloader = DataLoader(dataset, batch_size=train_batch_size, num_workers=1, sampler=train_sampler)
-    test_dataloader = DataLoader(dataset, batch_size=test_batch_size, num_workers=1, sampler=test_sampler)
+    train_dataloader = DataLoader(dataset, batch_size=train_batch_size, num_workers=0, sampler=train_sampler)
+    test_dataloader = DataLoader(dataset, batch_size=test_batch_size, num_workers=0, sampler=test_sampler)
     return train_dataloader, test_dataloader, eval_data, data_mean
 
 
 if __name__ == '__main__':
     args = get_args()
     if not args.test:
-        tensorboard_logger.configure(args.logdir)
+        tensorboard_logger.configure(os.path.join(args.logdir, str(args.runid)))
         print('Logging to {}'.format(args.logdir))
 
     # first variant - for every timeframe, select k points 
@@ -83,4 +94,4 @@ if __name__ == '__main__':
     
     train_dataloader, test_dataloader, eval_data, data_mean = get_dataloaders(args)
     trainer = Trainer(train_dataloader, test_dataloader, args=args, eval_data=eval_data, data_mean=data_mean)
-    trainer.train(args.num_epochs)
+    trainer.train(args.num_epochs, args.epoch)# + 1)
