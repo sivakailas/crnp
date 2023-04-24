@@ -84,8 +84,8 @@ def get_st_dataloaders(args):
     test_batch_size = args.batch_size
 
     dataset = STDataset(data=air_data, params=vars(args))
-    train_dataloader = DataLoader(dataset, batch_size=train_batch_size, num_workers=1, sampler=train_sampler)
-    test_dataloader = DataLoader(dataset, batch_size=test_batch_size, num_workers=1, sampler=test_sampler)
+    train_dataloader = DataLoader(dataset, batch_size=train_batch_size, num_workers=0, sampler=train_sampler)
+    test_dataloader = DataLoader(dataset, batch_size=test_batch_size, num_workers=0, sampler=test_sampler)
     return train_dataloader, test_dataloader, data_mean
 
 
@@ -105,8 +105,8 @@ def get_mnist_dataloader(args):
     
     train_batch_size = args.batch_size
     test_batch_size = args.batch_size
-    train_dataloader = DataLoader(dataset, batch_size=train_batch_size, num_workers=1, sampler=train_sampler)
-    test_dataloader = DataLoader(dataset, batch_size=test_batch_size, num_workers=1, sampler=test_sampler)
+    train_dataloader = DataLoader(dataset, batch_size=train_batch_size, num_workers=0, sampler=train_sampler)
+    test_dataloader = DataLoader(dataset, batch_size=test_batch_size, num_workers=0, sampler=test_sampler)
     
     # sz = train_dataloader.dataset.data.shape[-2:]
     # data_mean = train_dataloader.dataset.data.reshape(-1,sz[0],sz[1]).mean(0)
